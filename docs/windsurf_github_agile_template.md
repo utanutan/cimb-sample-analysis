@@ -68,7 +68,24 @@
 
 ⸻
 
-5. 運用・次フェーズ継続の仕組み
+5. v0画面設計プロセス
+	•	ユーザーストーリーから設計情報を抽出・整理
+	•	画面設計プロンプトの作成（要件・カラースキーム・コンポーネント等）
+	•	デザインツールでのモックアップ作成
+
+6. 関係性の可視化（GitHub Wiki活用）
+	•	Wikiによる全体構造の明確化
+	•	エピックとユーザーストーリーの関係性をWikiに整理
+	•	階層的なナビゲーションでプロジェクト全体像を把握
+
+7. スプリントタスク管理
+	•	スプリント専用フォルダ構造の整備（Wiki/Sprints/など）
+	•	ユーザーストーリーから具体タスクへの分解（ID・タスク名・担当者・見積時間・ステータス）
+	•	受け入れ条件のチェックリスト化
+	•	技術的準備タスクの整理
+	•	スプリント全体見積もりの算出
+
+8. 運用・次フェーズ継続の仕組み
 	•	Pull Request での AI レビュー活用
 	•	Windsurf の「Problems タブ」やテスト生成機能で品質担保
 	•	ホットフィックス運用
@@ -95,19 +112,61 @@
    - `git branch -m master main`でデフォルトブランチ名を変更
    - GitHubでリポジトリを作成: `gh repo create [リポジトリ名] --public/--private --description "説明文"`
    - リモート接続: `git remote add origin https://github.com/[ユーザー名]/[リポジトリ名].git`
+   - 初期コミット後のプッシュ: `git push -u origin main`
 
 2. **ドキュメント作成**:
    - README.md - プロジェクト概要、技術スタック、セットアップ方法
    - docs/project-plan.md - 詳細なプロジェクト計画書
    - .github/ISSUE_TEMPLATE/ - Issueテンプレート（ユーザーストーリー、バグ報告）
+   - docs/windsurf_github_agile_template.md - アジャイル運用テンプレート（再利用可能）
 
-3. **GitHub Projects設定**:
-   - GitHub上でプロジェクトボード作成
-   - フィールド設定（ステータス、優先度、サイズ、開始/終了日など）
-   - ラベル・マイルストーン設定
-   - エピック・ユーザーストーリーの登録
+3. **ラベル設定**:
+   - **タイプラベル**: 
+     - `epic` - 大きな機能セット（例: `gh label create "epic" --color 6E49CB --description "大きな機能セット"`)
+     - `user-story` - ユーザーの要求（例: `gh label create "user-story" --color 1D76DB --description "ユーザーの要求"`)
+   - **優先度ラベル**:
+     - `priority/high` - 高優先度（例: `gh label create "priority/high" --color D93F0B --description "高優先度タスク"`)
+     - `priority/medium` - 中優先度（例: `gh label create "priority/medium" --color FBCA04 --description "中優先度タスク"`)
+     - `priority/low` - 低優先度（例: `gh label create "priority/low" --color 0E8A16 --description "低優先度タスク"`)
+   - **サイズラベル**:
+     - `size/small` - 小規模タスク（例: `gh label create "size/small" --color C5DEF5 --description "小規模タスク（1-2日）"`)
+     - `size/medium` - 中規模タスク（例: `gh label create "size/medium" --color 7CAED5 --description "中規模タスク（3-5日）"`)
+     - `size/large` - 大規模タスク（例: `gh label create "size/large" --color 4078C0 --description "大規模タスク（1週間以上）"`)
+   - **その他**:
+     - `hotfix` - 緊急バグ修正用（例: `gh label create "hotfix" --color FF0000 --description "緊急バグ修正用"`)
+     - `project/[名前]` - プロジェクト識別（例: `gh label create "project/xyz" --color 0075CA --description "XYZプロジェクトに関連するタスク"`)
 
-4. **進捗管理**:
+4. **Issue作成**:
+   - **エピックIssue例**:
+     ```
+     gh issue create --title "エピック: [機能名]" --body "## 概要\n[説明]\n\n## 含まれるユーザーストーリー\n- [ユーザーストーリー]" --label "epic,project/xyz,priority/high"
+     ```
+   - **ユーザーストーリーIssue例**:
+     ```
+     gh issue create --title "ユーザーストーリー: [内容]" --body "## ユーザーストーリー\n[ペルソナ]として、[したいこと]。なぜなら[理由]からだ。\n\n## 受け入れ基準\n- [ ] [基準1]\n- [ ] [基準2]\n\n## 技術的メモ\n[メモ]\n\n## エピック / 関連Issue\n- #[エピック番号]" --label "user-story,project/xyz,priority/medium,size/small"
+     ```
+
+5. **マイルストーン設定**:
+   - GitHub API経由でマイルストーン作成（スプリント用）:
+     ```
+     gh api repos/[ユーザー名]/[リポジトリ名]/milestones -f title="スプリント1（開始日〜終了日）" -f description="[説明]" -f due_on="[終了日]T23:59:59Z"
+     ```
+   - Issueをマイルストーンに割り当て:
+     ```
+     gh issue edit [Issue番号] --milestone "[マイルストーン名]"
+     ```
+
+6. **GitHub Projects設定**:
+   - プロジェクトボード設定にはGH CLI認証スコープ更新が必要:
+     ```
+     gh auth refresh -s project
+     ```
+   - Issueをプロジェクトボードに追加:
+     ```
+     gh project item-add [プロジェクト番号] --owner [ユーザー名] --url [Issue URL]
+     ```
+
+7. **進捗管理**:
    - スプリントごとのIssue選定
    - ステータス管理（Todo → In Progress → Done）
    - レビュー・レトロスペクティブ
