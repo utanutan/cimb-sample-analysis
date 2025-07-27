@@ -13,21 +13,23 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Papa from 'papaparse'
 
+interface TransactionDetails {
+  transactionType: string
+  merchantInfo: string
+  referenceNumber: string
+  merchantName: string
+  location: string
+  paymentMethod: string
+}
+
 interface Transaction {
   date: string
   description: string
   amount: number
   balance: number
-  category?: string
-  icon?: string
-  transactionDetails?: {
-    transactionType: string
-    merchantInfo: string
-    merchantName: string
-    location: string
-    paymentMethod: string
-    referenceNumber: string
-  }
+  category: string
+  icon: string
+  transactionDetails: TransactionDetails
 }
 
 export default function UploadPage() {
@@ -71,23 +73,25 @@ export default function UploadPage() {
   }
 
   // 取引詳細をセグメントに分割する関数
-  const parseTransactionDetails = (description: string) => {
+  function parseTransactionDetails(description: string): TransactionDetails {
     // 「|」で分割
     const segments = description.split('|')
     
     // 基本的なセグメント構造
-    return {
-      transactionType: segments[0] || '',          // セグメント1: 取引タイプ/メソッド
-      merchantInfo: segments[1] || '',             // セグメント2: 店舗/サービス名と場所
-      referenceNumber: segments[2] || '',          // セグメント3: 参照番号
-      merchantName: segments[3] || '',             // セグメント4: 店舗名詳細
-      location: segments[4] || '',                 // セグメント5: 場所情報
-      paymentMethod: segments[5] || ''             // セグメント6: 支払い方法
+    const result: TransactionDetails = {
+      transactionType: segments[0]?.trim() || '',          // セグメント1: 取引タイプ/メソッド
+      merchantInfo: segments[1]?.trim() || '',             // セグメント2: 店舗/サービス名と場所
+      referenceNumber: segments[2]?.trim() || '',          // セグメント3: 参照番号
+      merchantName: segments[3]?.trim() || '',             // セグメント4: 店舗名詳細
+      location: segments[4]?.trim() || '',                 // セグメント5: 場所情報
+      paymentMethod: segments[5]?.trim() || ''             // セグメント6: 支払い方法
     }
+    
+    return result
   }
 
   // カテゴリを決定する関数
-  const determineCategory = (description: string, segments: any) => {
+  function determineCategory(description: string, segments: TransactionDetails): string {
     const type = segments.transactionType?.toLowerCase() || ''
     const merchant = segments.merchantName?.toLowerCase() || ''
     
@@ -201,7 +205,7 @@ export default function UploadPage() {
           const csvData = e.target?.result as string
           
           // Papa Parseを使用してCSVをパース
-          Papa.parse(csvData, {
+          Papa.parse<Record<string, string>>(csvData, {
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
@@ -278,7 +282,7 @@ export default function UploadPage() {
               setUploadProgress(100)
               setUploading(false)
             },
-            error: (error) => {
+            error: (error: Error) => {
               console.error('CSV解析エラー:', error)
               setError(`CSVの解析中にエラーが発生しました: ${error.message}`)
               setUploading(false)
@@ -433,7 +437,7 @@ export default function UploadPage() {
             <Card>
               <CardHeader>
                 <CardTitle>データプレビュー</CardTitle>
-                <CardDescription>アップロードされた取引データ（{transactions.length}件）を表示しています</CardDescription>
+                <CardDescription>アップロードされた取引データの直近5件（全{transactions.length}件）を表示しています</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -446,14 +450,39 @@ export default function UploadPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((transaction, index) => (
+                    {transactions.slice(0, 5).map((transaction, index) => (
                       <TableRow key={index}>
                         <TableCell>{transaction.date}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span>{transaction.description}</span>
-                            {transaction.category && (
-                              <span className="text-xs text-gray-500">{transaction.category} {transaction.icon && `• ${transaction.icon}`}</span>
+                          <div className="flex flex-col space-y-1">
+                            <div className="flex items-center">
+                              <span className="font-medium">{transaction.transactionDetails.transactionType}</span>
+                              {transaction.category && (
+                                <span className="text-xs ml-2 bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">
+                                  {transaction.category} {transaction.icon && `• ${transaction.icon}`}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {transaction.transactionDetails.merchantName && (
+                              <div className="text-sm">
+                                <span className="font-semibold">店舗: </span>
+                                <span>{transaction.transactionDetails.merchantName}</span>
+                              </div>
+                            )}
+                            
+                            {transaction.transactionDetails.location && (
+                              <div className="text-sm text-gray-600">
+                                <span className="font-semibold">場所: </span>
+                                <span>{transaction.transactionDetails.location}</span>
+                              </div>
+                            )}
+                            
+                            {transaction.transactionDetails.referenceNumber && (
+                              <div className="text-xs text-gray-500">
+                                <span className="font-semibold">参照番号: </span>
+                                <span>{transaction.transactionDetails.referenceNumber}</span>
+                              </div>
                             )}
                           </div>
                         </TableCell>
