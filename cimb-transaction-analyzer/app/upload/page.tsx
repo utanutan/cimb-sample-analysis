@@ -11,12 +11,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Papa from 'papaparse'
 
 interface Transaction {
   date: string
   description: string
   amount: number
   balance: number
+  category?: string
+  icon?: string
+  transactionDetails?: {
+    transactionType: string
+    merchantInfo: string
+    merchantName: string
+    location: string
+    paymentMethod: string
+    referenceNumber: string
+  }
 }
 
 export default function UploadPage() {
@@ -59,30 +70,238 @@ export default function UploadPage() {
     processFile(selectedFile)
   }
 
+  // 取引詳細をセグメントに分割する関数
+  const parseTransactionDetails = (description: string) => {
+    // 「|」で分割
+    const segments = description.split('|')
+    
+    // 基本的なセグメント構造
+    return {
+      transactionType: segments[0] || '',          // セグメント1: 取引タイプ/メソッド
+      merchantInfo: segments[1] || '',             // セグメント2: 店舗/サービス名と場所
+      referenceNumber: segments[2] || '',          // セグメント3: 参照番号
+      merchantName: segments[3] || '',             // セグメント4: 店舗名詳細
+      location: segments[4] || '',                 // セグメント5: 場所情報
+      paymentMethod: segments[5] || ''             // セグメント6: 支払い方法
+    }
+  }
+
+  // カテゴリを決定する関数
+  const determineCategory = (description: string, segments: any) => {
+    const type = segments.transactionType?.toLowerCase() || ''
+    const merchant = segments.merchantName?.toLowerCase() || ''
+    
+    if (type.includes('atm') || type.includes('withdrawal')) {
+      return 'cash'
+    } 
+    else if (type.includes('credit interest') || type.includes('ibg credit')) {
+      return 'income'
+    }
+    else if (type.includes('duitnow to account') || type.includes('i-funds')) {
+      return 'transfer'
+    }
+    else if (type.includes('debit card fee')) {
+      return 'fees'
+    }
+    else if (merchant.includes('grocer') || 
+            merchant.includes('7-eleven') || 
+            merchant.includes('familymart')) {
+      return 'groceries'
+    }
+    else if (merchant.includes('eats') || 
+            merchant.includes('rasa viet') || 
+            merchant.includes('maison') || 
+            merchant.includes('tonkatsu') || 
+            merchant.includes('tao bin') || 
+            merchant.includes('pizzalab') ||
+            merchant.includes('koppiku')) {
+      return 'dining'
+    }
+    else if (merchant.includes('pnh malaysia') || merchant.includes('pet')) {
+      return 'pets'
+    }
+    else if (type.includes('i-payment') && description.toLowerCase().includes('hotlink')) {
+      return 'utilities'
+    }
+    else if (merchant.includes('uniqlo') || 
+            merchant.includes('muji') || 
+            merchant.includes('urban revivo')) {
+      return 'shopping'
+    }
+    
+    return 'misc'
+  }
+
+  // アイコンを決定する関数
+  const determineIcon = (description: string, segments: any) => {
+    const type = segments.transactionType?.toLowerCase() || ''
+    const merchant = segments.merchantName?.toLowerCase() || ''
+    const descLower = description.toLowerCase()
+    
+    if (type.includes('atm') || type.includes('withdrawal')) {
+      return 'cash'
+    } 
+    else if (type.includes('duitnow') && (merchant.includes('koppiku') || merchant.includes('coffee'))) {
+      return 'coffee'
+    }
+    else if (type.includes('duitnow to account') || type.includes('i-funds tr')) {
+      return 'transfer'
+    }
+    else if (type.includes('credit interest') || type.includes('ibg credit')) {
+      return 'income'
+    }
+    else if (type.includes('debit card fee')) {
+      return 'fee'
+    }
+    else if (type.includes('i-payment') && descLower.includes('hotlink')) {
+      return 'phone'
+    }
+    else if (type.includes('i-payment') && descLower.includes('wise')) {
+      return 'transfer'
+    }
+    
+    if (merchant.includes('grocer') || 
+        merchant.includes('7-eleven') || 
+        merchant.includes('familymart')) {
+      return 'grocery'
+    }
+    else if (merchant.includes('eats') || 
+            merchant.includes('rasa viet') || 
+            merchant.includes('maison') || 
+            merchant.includes('tonkatsu') || 
+            merchant.includes('tao bin') || 
+            merchant.includes('pizzalab')) {
+      return 'food'
+    }
+    else if (merchant.includes('pnh malaysia') || merchant.includes('pet')) {
+      return 'pet'
+    }
+    else if (merchant.includes('uniqlo') || 
+            merchant.includes('muji') || 
+            merchant.includes('urban revivo')) {
+      return 'shopping'
+    }
+    
+    return 'misc'
+  }
+
   const processFile = async (file: File) => {
     setUploading(true)
     setUploadProgress(0)
 
     try {
-      // Simulate file processing
-      for (let i = 0; i <= 100; i += 10) {
-        setUploadProgress(i)
-        await new Promise((resolve) => setTimeout(resolve, 100))
+      // ファイル読み込みの準備
+      const reader = new FileReader()
+      
+      reader.onload = (e) => {
+        // 中間進捗更新
+        setUploadProgress(50)
+        
+        try {
+          const csvData = e.target?.result as string
+          
+          // Papa Parseを使用してCSVをパース
+          Papa.parse(csvData, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              // パース完了
+              setUploadProgress(75)
+              
+              const parsedTransactions: Transaction[] = []
+              let count = 1
+              
+              // CSVデータを処理
+              results.data.forEach((row: any) => {
+                try {
+                  // CSVデータを整形
+                  const date = row.Date
+                  const description = row['Transaction Details']?.replace(/"/g, '') || ''
+                  
+                  // 残高を取得
+                  const balance = parseFloat((row.Balance || '0').replace(/[^\d.-]/g, '').replace(/MYR/g, ''))
+                  
+                  // "Money In"と"Money Out"を処理
+                  let amount = 0
+                  if (row['Money In'] && row['Money In'].trim() !== '') {
+                    amount = parseFloat(row['Money In'].replace(/[^\d.-]/g, '').replace(/MYR/g, ''))
+                  } else if (row['Money Out'] && row['Money Out'].trim() !== '') {
+                    amount = -parseFloat(row['Money Out'].replace(/[^\d.-]/g, '').replace(/MYR/g, ''))
+                  }
+                  
+                  // 日付形式を変換（DD-Month-YYYY → YYYY-MM-DD）
+                  const dateParts = date.replace(/"/g, '').split('-')
+                  const day = dateParts[0]?.trim()
+                  const monthName = dateParts[1]?.trim()
+                  const year = dateParts[2]?.trim()
+                  
+                  // 月名を数字に変換
+                  const monthNames: {[key: string]: string} = {
+                    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+                    'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                    'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+                  }
+                  
+                  const month = monthNames[monthName] || '01'
+                  const formattedDate = `${year}-${month}-${day?.padStart(2, '0')}`
+                  
+                  // トランザクション詳細をセグメントに分割
+                  const segments = parseTransactionDetails(description)
+                  
+                  // カテゴリーとアイコンを決定
+                  const category = determineCategory(description, segments)
+                  const icon = determineIcon(description, segments)
+                  
+                  // トランザクションオブジェクトを構築
+                  const transaction: Transaction = {
+                    date: formattedDate,
+                    description: description,
+                    amount: parseFloat(amount.toFixed(2)),
+                    balance: balance,
+                    category: category,
+                    icon: icon,
+                    transactionDetails: segments
+                  }
+                  
+                  parsedTransactions.push(transaction)
+                  count++
+                } catch (rowError) {
+                  console.error('行の処理中にエラーが発生しました:', rowError)
+                }
+              })
+              
+              // 日付順（新しい順）にソート
+              parsedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              
+              // 結果をセット
+              setTransactions(parsedTransactions)
+              setUploadProgress(100)
+              setUploading(false)
+            },
+            error: (error) => {
+              console.error('CSV解析エラー:', error)
+              setError(`CSVの解析中にエラーが発生しました: ${error.message}`)
+              setUploading(false)
+            }
+          })
+        } catch (parseError) {
+          console.error('ファイル処理エラー:', parseError)
+          setError('CSVファイルの処理中にエラーが発生しました')
+          setUploading(false)
+        }
       }
-
-      // Mock CSV parsing - in real app, use Papa Parse
-      const mockTransactions: Transaction[] = [
-        { date: "2024-01-15", description: "GRAB*FOOD DELIVERY", amount: -25.5, balance: 1500.25 },
-        { date: "2024-01-14", description: "SALARY CREDIT", amount: 3500.0, balance: 1525.75 },
-        { date: "2024-01-13", description: "SHOPEE*ONLINE SHOPPING", amount: -89.9, balance: -1974.25 },
-        { date: "2024-01-12", description: "PETRONAS FUEL", amount: -65.0, balance: -1884.35 },
-        { date: "2024-01-11", description: "STARBUCKS COFFEE", amount: -18.5, balance: -1819.35 },
-      ]
-
-      setTransactions(mockTransactions)
-      setUploading(false)
+      
+      reader.onerror = () => {
+        setError('ファイルの読み込み中にエラーが発生しました')
+        setUploading(false)
+      }
+      
+      // ファイル読み込み開始
+      reader.readAsText(file)
+      setUploadProgress(25)
     } catch (err) {
-      setError("ファイルの処理中にエラーが発生しました")
+      console.error('エラー:', err)
+      setError('ファイルの処理中にエラーが発生しました')
       setUploading(false)
     }
   }
@@ -214,7 +433,7 @@ export default function UploadPage() {
             <Card>
               <CardHeader>
                 <CardTitle>データプレビュー</CardTitle>
-                <CardDescription>アップロードされた取引データの最初の5件を表示しています</CardDescription>
+                <CardDescription>アップロードされた取引データ（{transactions.length}件）を表示しています</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -227,10 +446,17 @@ export default function UploadPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.slice(0, 5).map((transaction, index) => (
+                    {transactions.map((transaction, index) => (
                       <TableRow key={index}>
                         <TableCell>{transaction.date}</TableCell>
-                        <TableCell>{transaction.description}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span>{transaction.description}</span>
+                            {transaction.category && (
+                              <span className="text-xs text-gray-500">{transaction.category} {transaction.icon && `• ${transaction.icon}`}</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell
                           className={`text-right ${transaction.amount >= 0 ? "text-green-600" : "text-red-600"}`}
                         >
