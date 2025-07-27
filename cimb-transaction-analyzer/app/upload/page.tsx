@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, HelpCircle, FileDown } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Papa from 'papaparse'
@@ -337,10 +338,10 @@ export default function UploadPage() {
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-[#0052CC] text-white rounded-full flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 bg-[#E60000] text-white rounded-full flex items-center justify-center text-sm font-bold">
                 1
               </div>
-              <span className="ml-2 text-[#0052CC] font-medium">アップロード</span>
+              <span className="ml-2 text-[#E60000] font-medium">アップロード</span>
             </div>
             <div className="w-16 h-0.5 bg-gray-300"></div>
             <div className="flex items-center">
@@ -353,6 +354,59 @@ export default function UploadPage() {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* CIMB Click CSV Download Guide */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <HelpCircle className="w-5 h-5 mr-2" />
+                CIMB ClickからCSVをダウンロードする方法
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="download-guide">
+                  <AccordionTrigger>ダウンロード手順を表示</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 text-sm">
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <h3 className="font-medium text-base mb-2 flex items-center">
+                          <FileDown className="w-4 h-4 mr-2 text-[#E60000]" /> CIMB Clickでの取引履歴CSVダウンロード手順
+                        </h3>
+                        <ol className="list-decimal pl-5 space-y-3">
+                          <li>
+                            <span className="font-medium">CIMB Clickにログイン:</span>
+                            <p>CIMB Clickウェブサイト（<a href="https://www.cimbclicks.com.my" target="_blank" rel="noopener noreferrer" className="text-[#E60000] hover:underline">www.cimbclicks.com.my</a>）にアクセスし、ログインします。</p>
+                          </li>
+                          <li>
+                            <span className="font-medium">口座詳細を表示:</span>
+                            <p>「口座の概要」セクションから、取引履歴をダウンロードしたい口座をクリックします。</p>
+                          </li>
+                          <li>
+                            <span className="font-medium">取引履歴を選択:</span>
+                            <p>「取引履歴」または「Account Statement」のタブを選択します。</p>
+                          </li>
+                          <li>
+                            <span className="font-medium">期間を選択:</span>
+                            <p>取引履歴をダウンロードしたい期間を選択します（例：過去1ヶ月、3ヶ月、特定の日付範囲など）。</p>
+                          </li>
+                          <li>
+                            <span className="font-medium">CSVとしてダウンロード:</span>
+                            <p>「ダウンロード」または「Export」ボタンをクリックし、出力形式として「CSV」を選択します。</p>
+                          </li>
+                          <li>
+                            <span className="font-medium">ファイルを保存:</span>
+                            <p>ダウンロードしたCSVファイルをコンピュータに保存します。このファイルをこのアプリケーションにアップロードしてください。</p>
+                          </li>
+                        </ol>
+                        <p className="mt-4 text-gray-600 dark:text-gray-400 text-xs">※ CIMB Clickのインターフェースは更新される場合があります。最新のナビゲーション方法については、CIMBサポートセンターにお問い合わせください。</p>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </CardContent>
+          </Card>
+
           {/* Upload Area */}
           <Card>
             <CardHeader>
@@ -365,7 +419,7 @@ export default function UploadPage() {
             <CardContent>
               <div
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive ? "border-[#0052CC] bg-[#0052CC]/5" : "border-gray-300 hover:border-[#0052CC]/50"
+                  dragActive ? "border-[#E60000] bg-[#E60000]/5" : "border-gray-300 hover:border-[#E60000]/50"
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -498,7 +552,7 @@ export default function UploadPage() {
                 </Table>
 
                 <div className="mt-6 flex justify-end">
-                  <Button onClick={handleAnalyze} className="bg-[#0052CC] hover:bg-[#0052CC]/90">
+                  <Button onClick={handleAnalyze} className="bg-[#E60000] hover:bg-[#E60000]/90" disabled={transactions.length === 0 || uploading}>
                     分析を開始
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
