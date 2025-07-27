@@ -109,10 +109,11 @@ const translateCategory = (category?: string): string => {
     "utilities": "光熱費",
     "medical": "医療費",
     "education": "教育",
-    "misc": "その他",
+    "misc": "買い物",
     "income": "収入",
     "transfer": "振込",
-    "other": "その他"
+    "other": "その他",
+    "unknown": "不明"
   }
   
   // 日本語のカテゴリはそのまま返す
@@ -393,7 +394,8 @@ export default function AnalysisPage() {
     const expenseSummary: { [key: string]: { amount: number; count: number } } = {}
 
     transactionList.forEach((transaction) => {
-      const category = transaction.category || "その他"
+      // カテゴリを日本語に標準化
+      const category = translateCategory(transaction.category) || "その他"
       const isIncome = transaction.amount >= 0
       
       // 全体のサマリーを更新
