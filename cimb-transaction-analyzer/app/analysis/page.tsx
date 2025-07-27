@@ -42,8 +42,8 @@ interface CategorySummary {
 const CATEGORIES = ["食費", "交通費", "娯楽", "ショッピング", "光熱費", "医療費", "教育", "その他", "収入"]
 
 const CATEGORY_COLORS = [
-  "#0052CC",
-  "#00A1DE",
+  "#E60000",
+  "#FF5252",
   "#FFC107",
   "#28a745",
   "#dc3545",
@@ -52,6 +52,91 @@ const CATEGORY_COLORS = [
   "#6c757d",
   "#20c997",
 ]
+
+// トランザクションタイプを日本語に変換する関数
+const translateTransactionType = (type: string): string => {
+  if (!type) return ""
+  
+  const typeMap: Record<string, string> = {
+    "transfer": "振込",
+    "payment": "支払い",
+    "withdrawal": "引き出し",
+    "deposit": "預入",
+    "salary": "給与",
+    "bill": "請求書",
+    "fee": "手数料",
+    "refund": "返金",
+    "interest": "利息",
+    "dividend": "配当",
+    "purchase": "購入",
+    "credit": "入金",
+    "debit": "引落し",
+    "cash": "現金",
+    "card": "カード",
+    "charge": "チャージ",
+    "subscription": "定期購読",
+    "misc": "その他"
+  }
+  
+  // 小文字化して検索
+  const lowerType = type.toLowerCase()
+  
+  // 完全一致チェック
+  if (typeMap[lowerType]) {
+    return typeMap[lowerType]
+  }
+  
+  // 部分一致チェック
+  for (const [key, value] of Object.entries(typeMap)) {
+    if (lowerType.includes(key)) {
+      return value
+    }
+  }
+  
+  // 該当なしの場合は元の文字列を返す
+  return type
+}
+
+// 英語のカテゴリ名を日本語に変換する関数
+const translateCategory = (category?: string): string => {
+  if (!category) return "その他"
+  
+  const categoryMap: Record<string, string> = {
+    "food": "食費",
+    "transport": "交通費",
+    "entertainment": "娟楽",
+    "shopping": "ショッピング",
+    "utilities": "光熱費",
+    "medical": "医療費",
+    "education": "教育",
+    "misc": "その他",
+    "income": "収入",
+    "transfer": "振込",
+    "other": "その他"
+  }
+  
+  // 日本語のカテゴリはそのまま返す
+  if (CATEGORIES.includes(category)) {
+    return category
+  }
+  
+  // 小文字化して検索
+  const lowerCategory = category.toLowerCase()
+  
+  // 完全一致チェック
+  if (categoryMap[lowerCategory]) {
+    return categoryMap[lowerCategory]
+  }
+  
+  // 部分一致チェック
+  for (const [key, value] of Object.entries(categoryMap)) {
+    if (lowerCategory.includes(key)) {
+      return value
+    }
+  }
+  
+  return "その他"
+}
 
 export default function AnalysisPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -66,7 +151,7 @@ export default function AnalysisPage() {
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>("")
   const [viewMode, setViewMode] = useState<'all' | 'monthly'>('monthly')
-  const [categoryTabView, setCategoryTabView] = useState<'expense' | 'income'>('expense')
+  const [categoryTabView, setCategoryTabView] = useState<'支出' | '収入'>('支出')
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
   // 現在の月のデータを抽出する関数
@@ -132,26 +217,170 @@ export default function AnalysisPage() {
     }
   }, [])
 
+  // データ読み込み時の処理
+  useEffect(() => {
+    const savedData = localStorage.getItem('transactionsData')
+    
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData)
+        
+        // 取引データのカテゴリを日本語に変換
+        const translatedData = parsedData.map((tx: Transaction) => ({
+          ...tx,
+          category: translateCategory(tx.category)
+        }))
+        
+        setTransactions(translatedData)
+        setFilteredTransactions(translatedData)
+        updateCategorySummary(translatedData)
+      } catch (error) {
+        console.error('取引データの読み込みエラー:', error)
+      }
+    }
+  }, [])
+  
   // 月が変更されたときの処理
   useEffect(() => {
     if (viewMode === 'monthly' && selectedMonth) {
-      const filtered = filterTransactionsByMonth(transactions, selectedMonth);
-      setFilteredTransactions(filtered);
-      updateCategorySummary(filtered);
+      const filtered = filterTransactionsByMonth(transactions, selectedMonth)
+      setFilteredTransactions(filtered)
+      updateCategorySummary(filtered)
     } else {
-      setFilteredTransactions(transactions);
-      updateCategorySummary(transactions);
+      setFilteredTransactions(transactions)
+      updateCategorySummary(transactions)
     }
   }, [selectedMonth, transactions, viewMode])
 
   const categorizeTransaction = (description: string, amount: number): string => {
-    if (amount > 0) return "収入"
+    // 収入の場合
+    if (amount > 0) {
+      const desc = description.toLowerCase()
+      if (desc.includes("salary") || desc.includes("gaji") || desc.includes("payment") ||
+          desc.includes("給料") || desc.includes("給与") || desc.includes("入金")) return "収入"
+      if (desc.includes("refund") || desc.includes("cashback") || desc.includes("rebate") ||
+          desc.includes("返金") || desc.includes("返金") || desc.includes("キャッシュバック")) return "収入"
+      if (desc.includes("dividend") || desc.includes("interest") || desc.includes("bonus") ||
+          desc.includes("配当") || desc.includes("利息") || desc.includes("ボーナス") || desc.includes("特別ボーナス")) return "収入"
+      return "収入"
+    }
 
+    // 支出の場合
     const desc = description.toLowerCase()
-    if (desc.includes("grab") || desc.includes("food") || desc.includes("restaurant")) return "食費"
-    if (desc.includes("fuel") || desc.includes("petronas") || desc.includes("transport")) return "交通費"
-    if (desc.includes("shopee") || desc.includes("lazada") || desc.includes("shopping")) return "ショッピング"
-    if (desc.includes("starbucks") || desc.includes("coffee") || desc.includes("cinema")) return "娯楽"
+    
+    // 食費
+    if (
+      desc.includes("grab") || desc.includes("food") || desc.includes("restaurant") ||
+      desc.includes("cafe") || desc.includes("eatery") || desc.includes("bakery") ||
+      desc.includes("mcdonalds") || desc.includes("kfc") || desc.includes("pizza") ||
+      desc.includes("sushi") || desc.includes("grocery") || desc.includes("supermarket") ||
+      desc.includes("foodpanda") || desc.includes("deliveroo") ||
+      desc.includes("7-eleven") || desc.includes("convenience") ||
+      desc.includes("tesco") || desc.includes("giant") || desc.includes("aeon") ||
+      // 日本語キーワード
+      desc.includes("食事") || desc.includes("レストラン") || desc.includes("カフェ") ||
+      desc.includes("飲食") || desc.includes("スーパー") || desc.includes("コンビニ") ||
+      desc.includes("ファミマ") || desc.includes("セブン") || desc.includes("ローソン") ||
+      desc.includes("マクドナルド") || desc.includes("すし") || desc.includes("寿司") ||
+      desc.includes("デリバリー") || desc.includes("出前")
+    ) return "食費"
+    
+    // 交通費
+    if (
+      desc.includes("fuel") || desc.includes("petronas") || desc.includes("shell") ||
+      desc.includes("petrol") || desc.includes("gas") || desc.includes("transport") ||
+      desc.includes("taxi") || desc.includes("grab car") || desc.includes("uber") ||
+      desc.includes("toll") || desc.includes("parking") || desc.includes("bus") ||
+      desc.includes("train") || desc.includes("mrt") || desc.includes("lrt") ||
+      desc.includes("car service") || desc.includes("auto") || desc.includes("mechanic") ||
+      // 日本語キーワード
+      desc.includes("ガソリン") || desc.includes("ガススタンド") || desc.includes("給油") ||
+      desc.includes("電車") || desc.includes("バス") || desc.includes("タクシー") ||
+      desc.includes("駅") || desc.includes("交通機関") || desc.includes("高速道路") ||
+      desc.includes("通行料") || desc.includes("駅前") || desc.includes("パーキング") ||
+      desc.includes("駅ビル") || desc.includes("車両") || desc.includes("整備")
+    ) return "交通費"
+    
+    // ショッピング
+    if (
+      desc.includes("shopee") || desc.includes("lazada") || desc.includes("shopping") ||
+      desc.includes("amazon") || desc.includes("ebay") || desc.includes("purchase") ||
+      desc.includes("retail") || desc.includes("store") || desc.includes("mall") ||
+      desc.includes("clothes") || desc.includes("fashion") || desc.includes("apparel") ||
+      desc.includes("electronic") || desc.includes("gadget") || desc.includes("device") ||
+      desc.includes("uniqlo") || desc.includes("h&m") || desc.includes("zara") ||
+      desc.includes("pos") || desc.includes("doitnow") ||
+      // 日本語キーワード
+      desc.includes("ショッピング") || desc.includes("買い物") || desc.includes("購入") ||
+      desc.includes("アマゾン") || desc.includes("楽天") || desc.includes("ユニクロ") ||
+      desc.includes("ファッション") || desc.includes("伝票") || desc.includes("モール") ||
+      desc.includes("衣料") || desc.includes("ブランド") || desc.includes("電子機器") ||
+      desc.includes("家電") || desc.includes("百貨店")
+    ) return "ショッピング"
+    
+    // 娯楽
+    if (
+      desc.includes("starbucks") || desc.includes("coffee") || desc.includes("cafe") ||
+      desc.includes("cinema") || desc.includes("movie") || desc.includes("entertainment") ||
+      desc.includes("game") || desc.includes("netflix") || desc.includes("subscription") ||
+      desc.includes("spotify") || desc.includes("music") || desc.includes("concert") ||
+      desc.includes("travel") || desc.includes("holiday") || desc.includes("vacation") ||
+      desc.includes("hotel") || desc.includes("resort") || desc.includes("ticket") ||
+      desc.includes("bar") || desc.includes("pub") || desc.includes("club") ||
+      // 日本語キーワード
+      desc.includes("スタバ") || desc.includes("コーヒー") || desc.includes("映画") ||
+      desc.includes("ゲーム") || desc.includes("ネットフリックス") || desc.includes("定額サービス") ||
+      desc.includes("音楽") || desc.includes("コンサート") || desc.includes("旅行") ||
+      desc.includes("旅行社") || desc.includes("ホテル") || desc.includes("宿泊") ||
+      desc.includes("チケット") || desc.includes("バー") || desc.includes("遊園地")
+    ) return "娯楽"
+    
+    // 光熱費
+    if (
+      desc.includes("electric") || desc.includes("water") || desc.includes("utility") ||
+      desc.includes("bill") || desc.includes("internet") || desc.includes("phone") ||
+      desc.includes("broadband") || desc.includes("wifi") || desc.includes("gas") ||
+      desc.includes("tnb") || desc.includes("air cond") || desc.includes("telco") ||
+      desc.includes("celcom") || desc.includes("digi") || desc.includes("maxis") ||
+      desc.includes("astro") || desc.includes("unifi") ||
+      // 日本語キーワード
+      desc.includes("電気") || desc.includes("電力") || desc.includes("水道") ||
+      desc.includes("ガス") || desc.includes("公共料金") || desc.includes("インターネット") ||
+      desc.includes("通信費") || desc.includes("携帯") || desc.includes("スマホ") ||
+      desc.includes("Wi-Fi") || desc.includes("光回線") || desc.includes("プロバイダ") ||
+      desc.includes("通信会社") || desc.includes("固定電話")
+    ) return "光熱費"
+    
+    // 医療費
+    if (
+      desc.includes("hospital") || desc.includes("clinic") || desc.includes("doctor") ||
+      desc.includes("medical") || desc.includes("medicine") || desc.includes("pharmacy") ||
+      desc.includes("dental") || desc.includes("health") || desc.includes("insurance") ||
+      desc.includes("vitamin") || desc.includes("supplement") ||
+      // 日本語キーワード
+      desc.includes("病院") || desc.includes("クリニック") || desc.includes("医院") ||
+      desc.includes("医療") || desc.includes("薬局") || desc.includes("薬") ||
+      desc.includes("歯科") || desc.includes("保険") || desc.includes("健康") ||
+      desc.includes("治療") || desc.includes("診療") || desc.includes("検査") ||
+      desc.includes("サプリメント") || desc.includes("ビタミン")
+    ) return "医療費"
+    
+    // 教育
+    if (
+      desc.includes("school") || desc.includes("college") || desc.includes("university") ||
+      desc.includes("education") || desc.includes("tuition") || desc.includes("course") ||
+      desc.includes("book") || desc.includes("stationery") || desc.includes("class") ||
+      desc.includes("seminar") || desc.includes("workshop") || desc.includes("training") ||
+      // 日本語キーワード
+      desc.includes("学校") || desc.includes("大学") || desc.includes("高校") ||
+      desc.includes("中学") || desc.includes("小学校") || desc.includes("幼稚園") ||
+      desc.includes("保育園") || desc.includes("塾") || desc.includes("学費") ||
+      desc.includes("授業料") || desc.includes("教育") || desc.includes("書籍") ||
+      desc.includes("本") || desc.includes("文具") || desc.includes("セミナー") ||
+      desc.includes("講座") || desc.includes("研修") || desc.includes("学習")
+    ) return "教育"
+    
+    // 該当するカテゴリが見つからない場合
     return "その他"
   }
 
@@ -225,9 +454,9 @@ export default function AnalysisPage() {
   const netBalance = totalIncome - totalExpense
 
   const chartData = categorySummary
-    .filter((item) => item.category !== "収入")
+    .filter((item) => translateCategory(item.category) !== "収入")
     .map((item) => ({
-      category: item.category,
+      category: translateCategory(item.category),
       amount: item.amount,
       fill: item.color,
     }))
@@ -258,12 +487,12 @@ export default function AnalysisPage() {
               </div>
               <span className="ml-2 text-green-500 font-medium">アップロード</span>
             </div>
-            <div className="w-16 h-0.5 bg-[#0052CC]"></div>
+            <div className="w-16 h-0.5 bg-[#E60000]"></div>
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-[#0052CC] text-white rounded-full flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 bg-[#E60000] text-white rounded-full flex items-center justify-center text-sm font-bold">
                 2
               </div>
-              <span className="ml-2 text-[#0052CC] font-medium">分析</span>
+              <span className="ml-2 text-[#E60000] font-medium">分析</span>
             </div>
           </div>
         </div>
@@ -389,7 +618,7 @@ export default function AnalysisPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">合計</CardTitle>
-                <Wallet className="w-4 h-4 text-blue-500" />
+                <Wallet className="w-4 h-4 text-[#E60000]" />
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${netBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -406,13 +635,13 @@ export default function AnalysisPage() {
                 <div className="flex justify-between items-center">
                   <CardTitle>カテゴリ別金額</CardTitle>
                   <div>
-                    <Tabs defaultValue="expense" value={categoryTabView} onValueChange={(v) => setCategoryTabView(v as 'expense' | 'income')}>
+                    <Tabs defaultValue="支出" value={categoryTabView} onValueChange={(v) => setCategoryTabView(v as '支出' | '収入')}>
                       <TabsList>
-                        <TabsTrigger value="expense" className="flex items-center">
+                        <TabsTrigger value="支出" className="flex items-center">
                           <ArrowDownCircle className="w-4 h-4 mr-2" />
                           支出
                         </TabsTrigger>
-                        <TabsTrigger value="income" className="flex items-center">
+                        <TabsTrigger value="収入" className="flex items-center">
                           <ArrowUpCircle className="w-4 h-4 mr-2" />
                           収入
                         </TabsTrigger>
@@ -421,13 +650,13 @@ export default function AnalysisPage() {
                   </div>
                 </div>
                 <CardDescription>
-                  {categoryTabView === 'expense' ? 
+                  {categoryTabView === '支出' ? 
                     'カテゴリ別の支出金額を表示しています' : 
                     'カテゴリ別の収入金額を表示しています'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {categoryTabView === 'expense' ? (
+                {categoryTabView === '支出' ? (
                   <div className="w-full h-[300px]">
                     <RechartsBarChart width={500} height={300} data={expenseCategorySummary} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -495,7 +724,7 @@ export default function AnalysisPage() {
                   <CardTitle>カテゴリ別割合</CardTitle>
                 </div>
                 <CardDescription>
-                  {categoryTabView === 'expense' ? 
+                  {categoryTabView === '支出' ? 
                     'カテゴリ別の支出割合を表示しています' : 
                     'カテゴリ別の収入割合を表示しています'}
                 </CardDescription>
@@ -504,7 +733,7 @@ export default function AnalysisPage() {
                 <div className="w-full h-[300px]">
                   <PieChart width={500} height={300}>
                     <Pie
-                      data={categoryTabView === 'expense' ? expenseCategorySummary : incomeCategorySummary}
+                      data={categoryTabView === '支出' ? expenseCategorySummary : incomeCategorySummary}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -512,7 +741,7 @@ export default function AnalysisPage() {
                       dataKey="amount"
                       nameKey="category"
                     >
-                      {(categoryTabView === 'expense' ? expenseCategorySummary : incomeCategorySummary).map((entry, index) => (
+                      {(categoryTabView === '支出' ? expenseCategorySummary : incomeCategorySummary).map((entry, index) => (
                         <Cell key={index} fill={entry.color} />
                       ))}
                     </Pie>
@@ -523,11 +752,11 @@ export default function AnalysisPage() {
                   </PieChart>
                 </div>
                 <div className="mt-4 space-y-2">
-                  {(categoryTabView === 'expense' ? expenseCategorySummary : incomeCategorySummary).map((item, index) => (
+                  {(categoryTabView === '支出' ? expenseCategorySummary : incomeCategorySummary).map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                        <span className="text-xs">{item.category}</span>
+                        <span className="text-xs">{translateCategory(item.category)}</span>
                       </div>
                       <span className="text-xs">RM {item.amount.toFixed(2)}</span>
                     </div>
@@ -580,7 +809,7 @@ export default function AnalysisPage() {
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: item.color }}
                           />
-                          <span>{item.category}</span>
+                          <span>{translateCategory(item.category)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="w-[15%] text-right">
@@ -631,7 +860,7 @@ export default function AnalysisPage() {
                                       <TableCell className="w-[65%]">
                                         <div className="flex flex-col space-y-1">
                                           <span className="font-medium">
-                                            {tx.transactionDetails.transactionType}
+                                            {translateTransactionType(tx.transactionDetails.transactionType)}
                                           </span>
                                           {tx.transactionDetails.merchantName && (
                                             <span className="text-sm">
@@ -705,7 +934,7 @@ export default function AnalysisPage() {
                         <TableCell className="font-medium">
                           <div className="flex flex-col space-y-1">
                             <div className="flex items-center">
-                              <span className="font-medium">{transaction.transactionDetails?.transactionType || transaction.description}</span>
+                              <span className="font-medium">{translateTransactionType(transaction.transactionDetails?.transactionType || transaction.description)}</span>
                             </div>
                             
                             {transaction.transactionDetails?.merchantName && (
@@ -737,11 +966,11 @@ export default function AnalysisPage() {
                         </TableCell>
                         <TableCell>
                           <Select
-                            defaultValue={transaction.category}
+                            value={transaction.category || "その他"}
                             onValueChange={(value) => handleCategoryChange(originalIndex !== -1 ? originalIndex : index, value)}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="選択" />
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="選択">{translateCategory(transaction.category) || "その他"}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {CATEGORIES.map((category) => (

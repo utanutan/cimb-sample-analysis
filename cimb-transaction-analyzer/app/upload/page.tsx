@@ -343,12 +343,12 @@ export default function UploadPage() {
               </div>
               <span className="ml-2 text-[#E60000] font-medium">アップロード</span>
             </div>
-            <div className="w-16 h-0.5 bg-gray-300"></div>
+            <div className="w-16 h-0.5 bg-[#E60000]"></div>
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 bg-[#FFCCCC] text-[#E60000] rounded-full flex items-center justify-center text-sm font-bold">
                 2
               </div>
-              <span className="ml-2 text-gray-600">分析</span>
+              <span className="ml-2 text-[#E60000]/70">分析</span>
             </div>
           </div>
         </div>
@@ -406,7 +406,7 @@ export default function UploadPage() {
               </Accordion>
             </CardContent>
           </Card>
-
+          
           {/* Upload Area */}
           <Card>
             <CardHeader>
@@ -553,7 +553,7 @@ export default function UploadPage() {
 
                 <div className="mt-6 flex justify-end">
                   <Button onClick={handleAnalyze} className="bg-[#E60000] hover:bg-[#E60000]/90" disabled={transactions.length === 0 || uploading}>
-                    分析を開始
+                    分析に進む
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
