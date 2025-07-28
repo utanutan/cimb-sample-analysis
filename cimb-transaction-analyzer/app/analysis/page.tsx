@@ -39,7 +39,7 @@ interface CategorySummary {
   color: string
 }
 
-const CATEGORIES = ["食費", "交通費", "娯楽", "ショッピング", "光熱費", "医療費", "教育", "その他", "収入"]
+const CATEGORIES = ["groceries", "transport", "entertainment", "shopping", "utilities", "medical", "education", "misc", "income", "cash", "dining", "pets", "fees", "transfer"]
 
 const CATEGORY_COLORS = [
   "#E60000",
@@ -97,46 +97,19 @@ const translateTransactionType = (type: string): string => {
   return type
 }
 
-// 英語のカテゴリ名を日本語に変換する関数
-const translateCategory = (category?: string): string => {
-  if (!category) return "その他"
-  
-  const categoryMap: Record<string, string> = {
-    "food": "食費",
-    "transport": "交通費",
-    "entertainment": "娟楽",
-    "shopping": "ショッピング",
-    "utilities": "光熱費",
-    "medical": "医療費",
-    "education": "教育",
-    "misc": "買い物",
-    "income": "収入",
-    "transfer": "振込",
-    "other": "その他",
-    "unknown": "不明"
-  }
-  
-  // 日本語のカテゴリはそのまま返す
-  if (CATEGORIES.includes(category)) {
-    return category
-  }
+// カテゴリ変換が不要になりました
+const getCategoryOrDefault = (category?: string): string => {
+  if (!category) return "misc"
   
   // 小文字化して検索
   const lowerCategory = category.toLowerCase()
   
-  // 完全一致チェック
-  if (categoryMap[lowerCategory]) {
-    return categoryMap[lowerCategory]
+  // 既存のカテゴリに含まれているか確認
+  if (CATEGORIES.map(c => c.toLowerCase()).includes(lowerCategory)) {
+    return category
   }
   
-  // 部分一致チェック
-  for (const [key, value] of Object.entries(categoryMap)) {
-    if (lowerCategory.includes(key)) {
-      return value
-    }
-  }
-  
-  return "その他"
+  return "misc"
 }
 
 export default function AnalysisPage() {
@@ -229,7 +202,7 @@ export default function AnalysisPage() {
         // 取引データのカテゴリを日本語に変換
         const translatedData = parsedData.map((tx: Transaction) => ({
           ...tx,
-          category: translateCategory(tx.category)
+          category: getCategoryOrDefault(tx.category)
         }))
         
         setTransactions(translatedData)
@@ -395,7 +368,7 @@ export default function AnalysisPage() {
 
     transactionList.forEach((transaction) => {
       // カテゴリを日本語に標準化
-      const category = translateCategory(transaction.category) || "その他"
+      const category = getCategoryOrDefault(transaction.category) || "misc"
       const isIncome = transaction.amount >= 0
       
       // 全体のサマリーを更新
@@ -456,9 +429,9 @@ export default function AnalysisPage() {
   const netBalance = totalIncome - totalExpense
 
   const chartData = categorySummary
-    .filter((item) => translateCategory(item.category) !== "収入")
+    .filter((item) => getCategoryOrDefault(item.category) !== "income")
     .map((item) => ({
-      category: translateCategory(item.category),
+      category: getCategoryOrDefault(item.category),
       amount: item.amount,
       fill: item.color,
     }))
@@ -758,7 +731,7 @@ export default function AnalysisPage() {
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                        <span className="text-xs">{translateCategory(item.category)}</span>
+                        <span className="text-xs">{getCategoryOrDefault(item.category)}</span>
                       </div>
                       <span className="text-xs">RM {item.amount.toFixed(2)}</span>
                     </div>
@@ -811,7 +784,7 @@ export default function AnalysisPage() {
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: item.color }}
                           />
-                          <span>{translateCategory(item.category)}</span>
+                          <span>{getCategoryOrDefault(item.category)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="w-[15%] text-right">
@@ -972,7 +945,7 @@ export default function AnalysisPage() {
                             onValueChange={(value) => handleCategoryChange(originalIndex !== -1 ? originalIndex : index, value)}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="選択">{translateCategory(transaction.category) || "その他"}</SelectValue>
+                              <SelectValue placeholder="Select">{getCategoryOrDefault(transaction.category) || "misc"}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {CATEGORIES.map((category) => (
