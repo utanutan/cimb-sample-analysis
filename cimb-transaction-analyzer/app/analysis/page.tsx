@@ -226,136 +226,101 @@ export default function AnalysisPage() {
     }
   }, [selectedMonth, transactions, viewMode])
 
+  // カテゴリ分類のための辞書定義
+  const categoryDictionary: Record<string, string[]> = {
+    '食費': [
+      '(?i)GROCER',
+      '(?i)TAO\\s*BIN\\s*KLANG',
+      '(?i)SALAD',
+      '(?i)BURGER',
+      '(?i)HOCK\\s*KEE\\s*KOPITIAM',
+      '(?i)TASTY\\s*CHAPATHI',
+      '(?i)SION\\s*DINING',
+      '(?i)LACHICA\\s*MEXICAN',
+      '(?i)FAMILYMART'
+    ],
+    '交通費': [
+      '(?i)GRAB',
+      '(?i)SHELL',
+      '(?i)TNG\\-EWALLET',
+      '(?i)MAXIS\\s*CENTRE'
+    ],
+    'ショッピング': [
+      '(?i)I-PAYMENT',
+      '(?i)DUITNOW',
+      '(?i)DAISO',
+      '(?i)SHOPEE',
+      '(?i)LAZADA',
+      '(?i)TIMEDOTCOM',
+      '(?i)APPLE\\.COM/BILL',
+      '(?i)SPORTS\\s*DIRECT',
+      '(?i)URBAN\\s*REVIVO',
+      '(?i)UNIQLO',
+      '(?i)MUJI',
+      '(?i)PHASE\\s*2',
+      '(?i)POS'
+    ],
+    '光熱費': [
+      '(?i)YNH\\s*UTILITY',
+      '(?i)HOTLINK\\s*TOP\\s*UP'
+    ],
+    '医療費': [
+      '(?i)HIBARI\\s*CLINIC',
+      '(?i)CARING\\s*PHARMACY',
+      '(?i)AEON\\s*WELLNESS'
+    ],
+    'その他': [
+      '(?i)APPLE\\.COM/BILL.*ITUNE',
+      '(?i)VELVET',
+      '(?i)AUTOPAY',
+      '(?i)IBG\\s*CREDIT',
+      '(?i)DUITNOW\\s*TO\\s*ACCOUNT',
+      '(?i)I\\-FUNDS\\s*TR',
+      '(?i)I-FUNDS',
+      '(?i)CREDIT\\s*INTEREST'
+    ],
+    '収入': [
+      '(?i)CASH\\s*BACK',
+      '(?i)WITHDRAW\\s*FUNDS'
+    ]
+  };
+
   const categorizeTransaction = (description: string, amount: number): string => {
-    // 収入の場合
+    // 収入の場合（金額がプラスの場合は収入と見なす）
     if (amount > 0) {
-      const desc = description.toLowerCase()
-      if (desc.includes("salary") || desc.includes("gaji") || desc.includes("payment") ||
-          desc.includes("給料") || desc.includes("給与") || desc.includes("入金")) return "収入"
-      if (desc.includes("refund") || desc.includes("cashback") || desc.includes("rebate") ||
-          desc.includes("返金") || desc.includes("返金") || desc.includes("キャッシュバック")) return "収入"
-      if (desc.includes("dividend") || desc.includes("interest") || desc.includes("bonus") ||
-          desc.includes("配当") || desc.includes("利息") || desc.includes("ボーナス") || desc.includes("特別ボーナス")) return "収入"
-      return "収入"
+      // 収入でも、特定のパターンに一致するものはそれを優先する
+      for (const [category, patterns] of Object.entries(categoryDictionary)) {
+        for (const pattern of patterns) {
+          try {
+            const regex = new RegExp(pattern);
+            if (regex.test(description)) {
+              return category;
+            }
+          } catch (error) {
+            console.error(`Invalid regex pattern: ${pattern}`, error);
+          }
+        }
+      }
+      // パターンに一致しなければ一般的な収入として扱う
+      return '収入';
     }
 
-    // 支出の場合
-    const desc = description.toLowerCase()
-    
-    // 食費
-    if (
-      desc.includes("grab") || desc.includes("food") || desc.includes("restaurant") ||
-      desc.includes("cafe") || desc.includes("eatery") || desc.includes("bakery") ||
-      desc.includes("mcdonalds") || desc.includes("kfc") || desc.includes("pizza") ||
-      desc.includes("sushi") || desc.includes("grocery") || desc.includes("supermarket") ||
-      desc.includes("foodpanda") || desc.includes("deliveroo") ||
-      desc.includes("7-eleven") || desc.includes("convenience") ||
-      desc.includes("tesco") || desc.includes("giant") || desc.includes("aeon") ||
-      // 日本語キーワード
-      desc.includes("食事") || desc.includes("レストラン") || desc.includes("カフェ") ||
-      desc.includes("飲食") || desc.includes("スーパー") || desc.includes("コンビニ") ||
-      desc.includes("ファミマ") || desc.includes("セブン") || desc.includes("ローソン") ||
-      desc.includes("マクドナルド") || desc.includes("すし") || desc.includes("寿司") ||
-      desc.includes("デリバリー") || desc.includes("出前")
-    ) return "食費"
-    
-    // 交通費
-    if (
-      desc.includes("fuel") || desc.includes("petronas") || desc.includes("shell") ||
-      desc.includes("petrol") || desc.includes("gas") || desc.includes("transport") ||
-      desc.includes("taxi") || desc.includes("grab car") || desc.includes("uber") ||
-      desc.includes("toll") || desc.includes("parking") || desc.includes("bus") ||
-      desc.includes("train") || desc.includes("mrt") || desc.includes("lrt") ||
-      desc.includes("car service") || desc.includes("auto") || desc.includes("mechanic") ||
-      // 日本語キーワード
-      desc.includes("ガソリン") || desc.includes("ガススタンド") || desc.includes("給油") ||
-      desc.includes("電車") || desc.includes("バス") || desc.includes("タクシー") ||
-      desc.includes("駅") || desc.includes("交通機関") || desc.includes("高速道路") ||
-      desc.includes("通行料") || desc.includes("駅前") || desc.includes("パーキング") ||
-      desc.includes("駅ビル") || desc.includes("車両") || desc.includes("整備")
-    ) return "交通費"
-    
-    // ショッピング
-    if (
-      desc.includes("shopee") || desc.includes("lazada") || desc.includes("shopping") ||
-      desc.includes("amazon") || desc.includes("ebay") || desc.includes("purchase") ||
-      desc.includes("retail") || desc.includes("store") || desc.includes("mall") ||
-      desc.includes("clothes") || desc.includes("fashion") || desc.includes("apparel") ||
-      desc.includes("electronic") || desc.includes("gadget") || desc.includes("device") ||
-      desc.includes("uniqlo") || desc.includes("h&m") || desc.includes("zara") ||
-      desc.includes("pos") || desc.includes("doitnow") ||
-      // 日本語キーワード
-      desc.includes("ショッピング") || desc.includes("買い物") || desc.includes("購入") ||
-      desc.includes("アマゾン") || desc.includes("楽天") || desc.includes("ユニクロ") ||
-      desc.includes("ファッション") || desc.includes("伝票") || desc.includes("モール") ||
-      desc.includes("衣料") || desc.includes("ブランド") || desc.includes("電子機器") ||
-      desc.includes("家電") || desc.includes("百貨店")
-    ) return "ショッピング"
-    
-    // 娯楽
-    if (
-      desc.includes("starbucks") || desc.includes("coffee") || desc.includes("cafe") ||
-      desc.includes("cinema") || desc.includes("movie") || desc.includes("entertainment") ||
-      desc.includes("game") || desc.includes("netflix") || desc.includes("subscription") ||
-      desc.includes("spotify") || desc.includes("music") || desc.includes("concert") ||
-      desc.includes("travel") || desc.includes("holiday") || desc.includes("vacation") ||
-      desc.includes("hotel") || desc.includes("resort") || desc.includes("ticket") ||
-      desc.includes("bar") || desc.includes("pub") || desc.includes("club") ||
-      // 日本語キーワード
-      desc.includes("スタバ") || desc.includes("コーヒー") || desc.includes("映画") ||
-      desc.includes("ゲーム") || desc.includes("ネットフリックス") || desc.includes("定額サービス") ||
-      desc.includes("音楽") || desc.includes("コンサート") || desc.includes("旅行") ||
-      desc.includes("旅行社") || desc.includes("ホテル") || desc.includes("宿泊") ||
-      desc.includes("チケット") || desc.includes("バー") || desc.includes("遊園地")
-    ) return "娯楽"
-    
-    // 光熱費
-    if (
-      desc.includes("electric") || desc.includes("water") || desc.includes("utility") ||
-      desc.includes("bill") || desc.includes("internet") || desc.includes("phone") ||
-      desc.includes("broadband") || desc.includes("wifi") || desc.includes("gas") ||
-      desc.includes("tnb") || desc.includes("air cond") || desc.includes("telco") ||
-      desc.includes("celcom") || desc.includes("digi") || desc.includes("maxis") ||
-      desc.includes("astro") || desc.includes("unifi") ||
-      // 日本語キーワード
-      desc.includes("電気") || desc.includes("電力") || desc.includes("水道") ||
-      desc.includes("ガス") || desc.includes("公共料金") || desc.includes("インターネット") ||
-      desc.includes("通信費") || desc.includes("携帯") || desc.includes("スマホ") ||
-      desc.includes("Wi-Fi") || desc.includes("光回線") || desc.includes("プロバイダ") ||
-      desc.includes("通信会社") || desc.includes("固定電話")
-    ) return "光熱費"
-    
-    // 医療費
-    if (
-      desc.includes("hospital") || desc.includes("clinic") || desc.includes("doctor") ||
-      desc.includes("medical") || desc.includes("medicine") || desc.includes("pharmacy") ||
-      desc.includes("dental") || desc.includes("health") || desc.includes("insurance") ||
-      desc.includes("vitamin") || desc.includes("supplement") ||
-      // 日本語キーワード
-      desc.includes("病院") || desc.includes("クリニック") || desc.includes("医院") ||
-      desc.includes("医療") || desc.includes("薬局") || desc.includes("薬") ||
-      desc.includes("歯科") || desc.includes("保険") || desc.includes("健康") ||
-      desc.includes("治療") || desc.includes("診療") || desc.includes("検査") ||
-      desc.includes("サプリメント") || desc.includes("ビタミン")
-    ) return "医療費"
-    
-    // 教育
-    if (
-      desc.includes("school") || desc.includes("college") || desc.includes("university") ||
-      desc.includes("education") || desc.includes("tuition") || desc.includes("course") ||
-      desc.includes("book") || desc.includes("stationery") || desc.includes("class") ||
-      desc.includes("seminar") || desc.includes("workshop") || desc.includes("training") ||
-      // 日本語キーワード
-      desc.includes("学校") || desc.includes("大学") || desc.includes("高校") ||
-      desc.includes("中学") || desc.includes("小学校") || desc.includes("幼稚園") ||
-      desc.includes("保育園") || desc.includes("塾") || desc.includes("学費") ||
-      desc.includes("授業料") || desc.includes("教育") || desc.includes("書籍") ||
-      desc.includes("本") || desc.includes("文具") || desc.includes("セミナー") ||
-      desc.includes("講座") || desc.includes("研修") || desc.includes("学習")
-    ) return "教育"
-    
-    // 該当するカテゴリが見つからない場合
-    return "その他"
+    // 支出の場合（金額がマイナスの場合は各カテゴリに分類）
+    for (const [category, patterns] of Object.entries(categoryDictionary)) {
+      for (const pattern of patterns) {
+        try {
+          const regex = new RegExp(pattern);
+          if (regex.test(description)) {
+            return category;
+          }
+        } catch (error) {
+          console.error(`Invalid regex pattern: ${pattern}`, error);
+        }
+      }
+    }
+
+    // どのパターンにも一致しない場合はその他に分類
+    return 'その他';
   }
 
   const updateCategorySummary = (transactionList: Transaction[]) => {
@@ -835,7 +800,7 @@ export default function AnalysisPage() {
                                       <TableCell className="w-[65%]">
                                         <div className="flex flex-col space-y-1">
                                           <span className="font-medium">
-                                            {translateTransactionType(tx.transactionDetails.transactionType)}
+                                            {tx.transactionDetails.transactionType}
                                           </span>
                                           {tx.transactionDetails.merchantName && (
                                             <span className="text-sm">
