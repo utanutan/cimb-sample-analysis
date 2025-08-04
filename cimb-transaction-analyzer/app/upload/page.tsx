@@ -439,9 +439,21 @@ export default function UploadPage() {
                     <input
                       id="file-input"
                       type="file"
-                      accept=".csv"
+                      accept=".csv,text/csv,application/vnd.ms-excel,application/csv,text/x-csv,application/x-csv"
                       className="hidden"
-                      onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                      onClick={(e) => {
+                        // iOSのSafariでファイルピッカーを開く前に値をリセット
+                        const target = e.target as HTMLInputElement;
+                        target.value = "";
+                      }}
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                          handleFile(files[0]);
+                        } else {
+                          console.log("ファイルが選択されませんでした");
+                        }
+                      }}
                     />
                   </>
                 ) : (
